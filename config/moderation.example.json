@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "normalization": {
+    "lowercase": true,
+    "stripDiacritics": true,
+    "mapLookalikes": false,
+    "collapseRepeats": false,
+    "normalizePunctuation": true
+  },
+  "allowlist": ["SAFEBANNEDWORDTWO"],
+  "rules": [
+    {
+      "id": "example-whole-word",
+      "type": "word",
+      "pattern": "BANNEDWORDONE",
+      "wholeWord": true,
+      "severity": "high",
+      "action": "disconnect",
+      "exceptions": [],
+      "enabled": true,
+      "description": "Whole-word match. Fires on 'BANNEDWORDONE' but NOT on 'BANNEDWORDONEXTRA', because whole-word matching compares tokens rather than substrings."
+    },
+    {
+      "id": "example-phrase",
+      "type": "phrase",
+      "pattern": "BANNED PHRASE ONE",
+      "wholeWord": true,
+      "severity": "medium",
+      "exceptions": [],
+      "enabled": true,
+      "description": "Multi-word phrase. Matches a contiguous run of tokens, so punctuation and extra spacing between the words do not defeat it."
+    },
+    {
+      "id": "example-substring",
+      "type": "word",
+      "pattern": "BANNEDWORDTWO",
+      "wholeWord": false,
+      "severity": "low",
+      "action": "warn",
+      "exceptions": ["SAFEBANNEDWORDTWO"],
+      "enabled": true,
+      "description": "Substring match, which is far more false-positive prone. The exception keeps 'SAFEBANNEDWORDTWO' from triggering it."
+    },
+    {
+      "id": "example-regex",
+      "type": "regex",
+      "pattern": "\\bbannedpattern[0-9]+\\b",
+      "severity": "medium",
+      "exceptions": [],
+      "enabled": false,
+      "description": "Regex rules are matched against the NORMALIZED transcript (lowercased, punctuation folded to spaces). They can only be defined in this file, never through /moderation add. Disabled by default."
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+services:
+  bot:
+    build: .
+    image: birdeye-cop:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Rules are edited at runtime by /moderation add|remove, so they must
+      # outlive the container.
+      - birdeye-config:/app/config
+      - birdeye-data:/app/data
+      # Violation audio is sensitive. A named volume keeps it off the host
+      # filesystem tree and out of any bind-mounted project directory.
+      - birdeye-evidence:/app/violation-audio
+    # Nothing is published: the bot exposes no network service, and evidence
+    # must never be reachable over HTTP.
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+volumes:
+  birdeye-config:
+  birdeye-data:
+  birdeye-evidence:

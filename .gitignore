@@ -1,0 +1,39 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Runtime moderation config (contains the operator's real banned-term list)
+config/moderation.json
+
+# Moderation evidence — sensitive audio recordings, never commit
+violation-audio/
+*.wav
+
+# Persistence
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.jsonl
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Test output
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

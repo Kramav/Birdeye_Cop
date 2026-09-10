@@ -1,0 +1,61 @@
+[Unit]
+Description=Birdeye_Cop — Discord voice moderation bot
+Documentation=https://github.com/kramav/Birdeye_Cop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=birdeye
+Group=birdeye
+WorkingDirectory=/opt/birdeye-cop
+
+# The .env holds the bot token and speech-to-text credentials; keep it 600 and
+# owned by the service user.
+EnvironmentFile=/opt/birdeye-cop/.env
+ExecStart=/usr/bin/node /opt/birdeye-cop/dist/index.js
+
+Restart=on-failure
+RestartSec=5s
+
+# SIGTERM triggers the graceful shutdown path: leave voice, drain the queue,
+# close the database. Allow enough time for that before SIGKILL.
+KillSignal=SIGTERM
+TimeoutStopSec=20s
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=birdeye-cop
+
+# ── Hardening ────────────────────────────────────────────────────────────────
+# This process handles other people's voice data; give it as little of the
+# system as it can work with.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+# The only paths the service may write to.
+ReadWritePaths=/opt/birdeye-cop/data /opt/birdeye-cop/violation-audio /opt/birdeye-cop/config
+
+# Modest ceiling: memory scales with concurrent speakers, and the rolling
+# evidence buffer is roughly 1.1 MB per speaker when enabled.
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
