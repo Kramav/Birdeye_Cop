@@ -592,6 +592,21 @@ alerts the moderation channel. Never assume silence means compliance.
   speaker) is preferred, with pure-JS `opusscript` as an automatic fallback.
   Both are optional dependencies so a failed native build degrades performance
   instead of breaking the install.
+
+  `npm install` prints six `npm warn deprecated` lines — `inflight`, `npmlog`,
+  `gauge`, `are-we-there-yet`, `glob@7`, `rimraf@3`. **This is expected.** All
+  six come from `@discordjs/node-pre-gyp`, the build-time tooling
+  `@discordjs/opus` uses to fetch or compile its native binary. None of them run
+  at runtime, and `npm audit` reports zero vulnerabilities.
+
+  They are deliberately left alone. Forcing newer majors through `overrides`
+  would break the native build — `glob` 7→10 is a breaking API change — and on
+  ARM there is no prebuilt binary to fall back to, so the "fix" costs you the
+  native decoder on exactly the hardware that needs it most. The one override
+  that *is* applied, `tar@^7`, was a real advisory in the same tree. Dropping
+  `@discordjs/opus` outright would silence the warnings at the price of higher
+  CPU per speaker; on a Raspberry Pi that is the wrong trade. Revisit only if
+  upstream republishes on a maintained node-pre-gyp.
 - **`prism-media` is unmaintained** (last published 2023). It remains the
   library discord.js itself recommends, but treat it as frozen: no fixes are
   coming if a new edge case appears.
@@ -722,6 +737,8 @@ transcription call — with a specific fix for each failure.
 | Symptom | Cause and fix |
 | --- | --- |
 | `EBADENGINE` / `npm install` pulls older versions than `package.json` asks for | Your Node is older than 22.12, so npm falls back to versions that fit it instead of erroring. `node -v`, then [fix Node](#node-version) and `rm -rf node_modules && npm ci`. |
+| `npm warn deprecated` for `inflight`, `npmlog`, `gauge`, `glob@7`, `rimraf@3`, `are-we-there-yet` | Expected, safe to ignore, deliberately not fixed — see [Other library-specific requirements](#other-library-specific-requirements). Do not `overrides` them to newer majors; it breaks the native build. |
+| `npm warn install-scripts ... blocked because they are not covered by allowScripts` | npm >= 12 blocks dependency install scripts by default. The approvals are committed in `package.json`, so this means your checkout is stale or a dependency version moved. `npm install-scripts ls` to review, `npm install-scripts approve esbuild @discordjs/opus better-sqlite3`, then `npm rebuild`. **esbuild matters most** — `tsx` and `vitest` are built on it, so `npm run dev`, `setup`, `doctor`, and `test` all fail without it. |
 | Bot joins but never reacts | Almost always voice receive. Run `npm run spike:voice`. If speaking events arrive with zero bytes, see [DAVE](#dave-end-to-end-encryption--the-big-one). |
 | `VOICE_LIVENESS_WARNING` in the logs | Confirmed broken receive: speaking events but no audio. Verify `@discordjs/voice` is exactly `0.19.2` and `@snazzah/davey` loads. |
 | Connects, hears nothing, no errors | `selfDeaf` must be false, and the bot must not be server-deafened in that channel. |
