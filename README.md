@@ -40,10 +40,19 @@ second opinion — resolves to doing nothing rather than guessing.
 
 ## Quickstart
 
-Roughly five minutes, with no credentials needed for the first run.
+**Deploying to a server, a Raspberry Pi, or any Debian/Ubuntu box? Skip this
+section — run [`sudo ./scripts/install.sh`](#systemd) instead.** It installs the
+right Node version, the build toolchain, a service user, and a systemd unit. The
+manual steps below assume Node >= 22.12 is already correct on your machine;
+distro packages usually give you something older (see
+[Node version](#node-version)).
+
+For a first look on your own laptop — roughly five minutes, no credentials
+needed:
 
 ```bash
 git clone <this repo> && cd Birdeye_Cop
+node -v            # must be >= 22.12, or npm install will fight you
 npm install
 npm run setup      # validates your token live, prints an invite URL
 npm run doctor     # ✓/✗ checklist with a fix for every failure
@@ -185,7 +194,31 @@ npm run doctor       # diagnose a broken setup
 npm run spike:voice -- <voiceChannelId>   # prove voice receive works
 ```
 
+### Node version
+
 **Requires Node >= 22.12** (`@discordjs/voice` enforces this).
+
+Every Debian-family distro — including Raspberry Pi OS — ships something older
+and will happily install it: Bookworm's `nodejs` is 18. Worse, `apt install npm`
+pulls that old `nodejs` in as a dependency, so it shadows any newer Node you
+installed afterwards. `scripts/install.sh` handles all of this; if you are doing
+it by hand:
+
+```bash
+sudo apt remove -y nodejs npm libnode-dev        # remove the apt Node first
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+hash -r && node -v && which -a node npm          # one path each, v22.12+
+```
+
+npm ships inside Node — never `apt install npm` again.
+
+On ARM, check `uname -m` first: `aarch64` works with the above. `armv7l` (32-bit
+Pi OS) may have no NodeSource candidate — use [nvm](https://github.com/nvm-sh/nvm)
+and `nvm install 22`. `armv6l` (Pi Zero W, Pi 1) has no official Node past v11;
+use a 64-bit-capable Pi. ARM also has no prebuilt binaries for the optional
+native modules, so install `build-essential` and `python3` before `npm ci` if you
+want them.
 
 ---
 
@@ -232,7 +265,12 @@ lets you restart either half independently.
 
 ### systemd
 
+**The path of least resistance on a Raspberry Pi or any bare Debian/Ubuntu
+host.** One command does the whole install — don't hand-roll the Quickstart
+steps on a server.
+
 ```bash
+git clone <this repo> && cd Birdeye_Cop
 sudo ./scripts/install.sh
 cd /opt/birdeye-cop
 sudo -u birdeye npm run setup
@@ -241,7 +279,9 @@ sudo systemctl enable --now birdeye-cop
 journalctl -u birdeye-cop -f
 ```
 
-The installer is idempotent — re-run it to upgrade. It installs Node if needed,
+The installer is idempotent — re-run it to upgrade. It installs Node 22 from
+NodeSource if the system Node is missing or too old (see
+[Node version](#node-version)),
 creates a `birdeye` system user, builds, seeds the rules file, and installs the
 unit from [`deploy/birdeye-cop.service`](deploy/birdeye-cop.service). That unit
 is hardened (`ProtectSystem=strict`, `PrivateDevices`, a syscall filter, and a
@@ -681,6 +721,7 @@ transcription call — with a specific fix for each failure.
 
 | Symptom | Cause and fix |
 | --- | --- |
+| `EBADENGINE` / `npm install` pulls older versions than `package.json` asks for | Your Node is older than 22.12, so npm falls back to versions that fit it instead of erroring. `node -v`, then [fix Node](#node-version) and `rm -rf node_modules && npm ci`. |
 | Bot joins but never reacts | Almost always voice receive. Run `npm run spike:voice`. If speaking events arrive with zero bytes, see [DAVE](#dave-end-to-end-encryption--the-big-one). |
 | `VOICE_LIVENESS_WARNING` in the logs | Confirmed broken receive: speaking events but no audio. Verify `@discordjs/voice` is exactly `0.19.2` and `@snazzah/davey` loads. |
 | Connects, hears nothing, no errors | `selfDeaf` must be false, and the bot must not be server-deafened in that channel. |
