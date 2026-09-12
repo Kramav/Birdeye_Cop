@@ -14,6 +14,7 @@
     "dev": "tsx watch src/index.ts",
     "setup": "tsx src/scripts/setup.ts",
     "doctor": "tsx src/scripts/doctor.ts",
+    "whisper": "bash scripts/whisper-server.sh",
     "spike:voice": "tsx src/scripts/spike-voice-receive.ts",
     "test": "vitest run",
     "test:watch": "vitest",

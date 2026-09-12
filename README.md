@@ -152,12 +152,17 @@ STT_BASE_URL=http://localhost:8080/v1
 STT_MODEL=base.en
 ```
 
-For a fully local setup, [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
-ships `whisper-server`, which exposes an OpenAI-compatible endpoint:
+For a fully local setup, run [whisper.cpp](https://github.com/ggml-org/whisper.cpp)'s
+`whisper-server`. One command clones and builds it into `~/whisper.cpp`, downloads
+the model, and starts it on `127.0.0.1:8080` (the first run takes a few minutes):
 
 ```bash
-./build/bin/whisper-server -m models/ggml-base.en.bin --port 8080
+npm run whisper                                   # needs git, cmake, build-essential
+WHISPER_MODEL=small.en WHISPER_HOST=0.0.0.0 npm run whisper   # other model / sibling container
 ```
+
+Running it by hand? It serves `/inference` by default, so pass
+`--inference-path /v1/audio/transcriptions` or every request 404s.
 
 Confidence is derived from log-probabilities and the model's own
 `no_speech_prob`, which is weaker than a native score but usable.

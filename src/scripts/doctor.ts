@@ -289,10 +289,12 @@ async function checkSttProvider(config: AppConfig): Promise<CheckResult> {
     if (/401|403|unauthor/i.test(message)) hint = 'STT_API_KEY appears to be invalid.';
     else if (/ECONNREFUSED|fetch failed/i.test(message)) {
       hint = config.stt.baseUrl?.includes('localhost')
-        ? `Nothing is listening at ${config.stt.baseUrl}. Start whisper-server, or switch STT_PROVIDER=mock.`
+        ? `Nothing is listening at ${config.stt.baseUrl}. Start it with \`npm run whisper\`, or switch STT_PROVIDER=mock.`
         : 'Could not reach the speech-to-text endpoint from this host.';
     } else if (/404/.test(message)) {
-      hint = `STT_BASE_URL may be wrong. It should end in /v1 (currently ${config.stt.baseUrl ?? 'unset'}).`;
+      hint = config.stt.baseUrl?.includes('localhost')
+        ? 'whisper-server needs `--inference-path /v1/audio/transcriptions`. Start it with `npm run whisper`.'
+        : `STT_BASE_URL may be wrong. It should end in /v1 (currently ${config.stt.baseUrl ?? 'unset'}).`;
     } else if (/model/i.test(message)) {
       hint = `The model "${config.stt.model}" may not exist for this provider.`;
     }
