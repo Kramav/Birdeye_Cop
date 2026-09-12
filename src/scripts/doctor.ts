@@ -5,9 +5,11 @@
  * carries a concrete next step rather than a stack trace, because the people
  * running this are setting up a bot, not debugging TypeScript.
  */
-import { access, constants, mkdir, stat } from 'node:fs/promises';
+import { access, constants, mkdir, readFile, stat } from 'node:fs/promises';
+import { userInfo } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import process from 'node:process';
+import { parse } from 'dotenv';
 import { loadEnv } from '../config/env.js';
 import type { AppConfig } from '../config/types.js';
 import { loadRuleset } from '../moderation/rules.js';
@@ -91,6 +93,47 @@ async function checkModule(
         '`sudo apt install -y build-essential python3` then `npm ci`.',
     };
   }
+}
+
+/**
+ * dotenv swallows every read error, so a missing or unreadable .env looks
+ * exactly like an empty one. Must run before loadEnv() mutates process.env.
+ */
+async function checkEnvFile(): Promise<CheckResult> {
+  const path = resolve('.env');
+  let text: string;
+  try {
+    text = await readFile(path, 'utf8');
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') {
+      return {
+        status: 'warn',
+        detail: `not found at ${path}`,
+        hint: 'Run `npm run setup` in this directory, or supply the variables through the environment.',
+      };
+    }
+    return {
+      status: 'fail',
+      detail: `${code ?? toError(err).message}: ${path}`,
+      hint:
+        `User "${userInfo().username}" cannot read it — setup was probably run as a different user ` +
+        '(e.g. root instead of `sudo -u birdeye`). Fix its owner, or re-run setup as this user.',
+    };
+  }
+
+  // dotenv never overrides a variable that is already set, even to "".
+  const shadowed = Object.entries(parse(text))
+    .filter(([key, value]) => process.env[key] !== undefined && process.env[key] !== value)
+    .map(([key]) => key);
+  if (shadowed.length > 0) {
+    return {
+      status: 'warn',
+      detail: `ignored for ${shadowed.join(', ')}`,
+      hint: 'Already set in the shell environment, which takes precedence over .env. Unset them.',
+    };
+  }
+  return { status: 'ok', detail: path };
 }
 
 async function checkDiscordToken(config: AppConfig): Promise<CheckResult> {
@@ -364,6 +407,7 @@ async function main(): Promise<void> {
   );
 
   section('Configuration');
+  report('.env file', await checkEnvFile());
   let config: AppConfig;
   try {
     config = loadEnv();
