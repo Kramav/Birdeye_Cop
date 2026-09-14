@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -11,6 +11,8 @@ import {
   ruleIdForTerm,
   saveRuleset,
 } from '../../src/moderation/rules.js';
+import { RulesService } from '../../src/moderation/rules-service.js';
+import { createNullLogger } from '../../src/observability/logger.js';
 import { ConfigError } from '../../src/utils/errors.js';
 import { DEFAULT_NORMALIZATION } from '../../src/moderation/types.js';
 
@@ -229,5 +231,20 @@ describe('persistence', () => {
     for (const rule of ruleset.rules) {
       expect(rule.pattern.toUpperCase()).toMatch(/BANNED|PLACEHOLDER|SAFE/);
     }
+  });
+
+  it('keeps hand edits made while the bot is running when a term is added', async () => {
+    const path = await tempFile();
+    await writeFile(path, JSON.stringify({ rules: [] }));
+    const service = await RulesService.create(path, createNullLogger());
+
+    // The README's "By editing the file" snippet, added by hand after startup.
+    const handRule = { id: 'badword', type: 'word', pattern: 'badword', wholeWord: true, severity: 'medium', exceptions: [], enabled: true };
+    await writeFile(path, JSON.stringify({ rules: [handRule] }));
+
+    await service.addTerm('pineapple');
+    expect((await loadRuleset(path)).rules.map((r) => r.pattern)).toEqual(['badword', 'pineapple']);
+    // Case, accents, and punctuation don't make a new term.
+    expect((await service.addTerm('BÄDWORD!')).alreadyExists).toBe(true);
   });
 });

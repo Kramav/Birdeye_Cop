@@ -56,14 +56,18 @@ export const moderationCommand = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName('add')
-      .setDescription('Add a banned word or phrase')
+      .setDescription('Ban a word or phrase — applies immediately, no restart')
       .addStringOption((o) =>
-        o.setName('term').setDescription('Word or phrase to ban').setRequired(true).setMaxLength(200),
+        o
+          .setName('term')
+          .setDescription('One word, or a phrase with spaces. Case and punctuation are ignored.')
+          .setRequired(true)
+          .setMaxLength(200),
       )
       .addStringOption((o) =>
         o
           .setName('severity')
-          .setDescription('Rule severity')
+          .setDescription('high = harsher first action. Default: medium')
           .addChoices(
             { name: 'low', value: 'low' },
             { name: 'medium', value: 'medium' },
@@ -73,7 +77,7 @@ export const moderationCommand = new SlashCommandBuilder()
       .addBooleanOption((o) =>
         o
           .setName('whole-word')
-          .setDescription('Match only as a whole word (default: true)'),
+          .setDescription('Default true: "cat" will not match "category". False matches inside words.'),
       ),
   )
   .addSubcommand((s) =>
@@ -316,7 +320,9 @@ async function addRule(
     await interaction.reply({
       content: alreadyExists
         ? `That term is already covered by rule \`${rule.id}\`.`
-        : `Added rule \`${rule.id}\` (${rule.type}, ${rule.severity}, whole-word: ${rule.wholeWord}).`,
+        : `Added rule \`${rule.id}\` (${rule.type}, ${rule.severity}, whole-word: ${rule.wholeWord}). ` +
+          `It is active now in monitored channels.\n` +
+          `Undo: \`/moderation remove term:${rule.id}\` · See all: \`/moderation list\``,
       flags: MessageFlags.Ephemeral,
     });
   } catch (err) {
@@ -349,7 +355,7 @@ async function listRules(
 
   if (rules.length === 0) {
     await interaction.reply({
-      content: 'No rules configured.',
+      content: 'No banned words yet. Add one with `/moderation add term:<word or phrase>`.',
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -372,6 +378,10 @@ async function listRules(
   if (allowlist.length > 0) {
     lines.push('', `**Allowlist:** ${allowlist.length} term(s)`);
   }
+  if (rules.some((rule) => rule.id.startsWith('example-'))) {
+    lines.push('', '`example-*` rules are placeholders from the example file. Remove them with `/moderation remove`.');
+  }
+  lines.push('', 'Add: `/moderation add term:<word>` · Remove: `/moderation remove term:<rule ID or word>`');
 
   // The rules themselves are not echoed back: the list is a management view,
   // and repeating every banned term into a channel is rarely what an admin

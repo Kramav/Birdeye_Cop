@@ -1,0 +1,38 @@
+[Unit]
+Description=Birdeye_Cop — local whisper.cpp speech-to-text
+Documentation=https://github.com/kramav/Birdeye_Cop
+After=network-online.target
+# Exists only for the bot: started before it, stopped and restarted with it.
+Before=birdeye-cop.service
+PartOf=birdeye-cop.service
+
+[Service]
+Type=simple
+User=birdeye
+Group=birdeye
+Environment=WHISPER_DIR=/opt/birdeye-cop/whisper.cpp
+# Model and port: override with `systemctl edit birdeye-whisper`.
+Environment=WHISPER_MODEL=base.en
+Environment=WHISPER_PORT=8080
+# Built beforehand by install.sh; the unit itself only runs the binary, so a
+# missing build fails here instead of compiling on every boot.
+ExecStart=/bin/bash /opt/birdeye-cop/scripts/whisper-server.sh
+
+Restart=on-failure
+RestartSec=5s
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=birdeye-whisper
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# Writable so a changed WHISPER_MODEL can download on start.
+ReadWritePaths=/opt/birdeye-cop/whisper.cpp/models
+# No PrivateDevices: a GPU build needs /dev/dri.
+
+[Install]
+# `systemctl enable birdeye-whisper` makes starting the bot start this too.
+WantedBy=birdeye-cop.service

@@ -41,7 +41,7 @@ apt-get update -qq
 # missing for this platform, the native modules can still compile rather than
 # failing the install outright.
 apt-get install -y -qq --no-install-recommends \
-  ca-certificates curl git build-essential python3 pkg-config
+  ca-certificates curl git build-essential python3 pkg-config cmake
 ok "base packages installed"
 
 step "Ensuring Node.js >= ${NODE_MAJOR}.12"
@@ -75,7 +75,8 @@ fi
 
 step "Fetching the application into ${APP_DIR}"
 if [[ -d "${APP_DIR}/.git" ]]; then
-  git -C "$APP_DIR" pull --ff-only
+  # As the owner: git refuses to operate on another user's checkout as root.
+  runuser -u "$APP_USER" -- git -C "$APP_DIR" pull --ff-only
   ok "updated existing checkout"
 elif [[ -f "${APP_DIR}/package.json" ]]; then
   ok "existing non-git install found; leaving files alone"
@@ -117,8 +118,18 @@ ok "runtime directories ready"
 
 step "Installing the systemd unit"
 install -m 0644 "${APP_DIR}/deploy/birdeye-cop.service" /etc/systemd/system/birdeye-cop.service
+install -m 0644 "${APP_DIR}/deploy/birdeye-whisper.service" /etc/systemd/system/birdeye-whisper.service
 systemctl daemon-reload
 ok "birdeye-cop.service installed"
+
+# Local speech-to-text: opt in with WITH_WHISPER=1; upgrades keep it once enabled.
+if [[ "${WITH_WHISPER:-0}" == 1 ]] || systemctl is-enabled --quiet birdeye-whisper 2>/dev/null; then
+  step "Building local whisper.cpp (the first build takes a few minutes)"
+  runuser -u "$APP_USER" -- env WHISPER_DIR="${APP_DIR}/whisper.cpp" \
+    bash "${APP_DIR}/scripts/whisper-server.sh" --build-only
+  systemctl enable birdeye-whisper
+  ok "birdeye-whisper.service enabled — starts, stops, and restarts with the bot"
+fi
 
 if [[ ! -f "${APP_DIR}/.env" ]]; then
   echo

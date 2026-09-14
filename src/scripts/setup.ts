@@ -345,7 +345,10 @@ async function main(): Promise<void> {
   process.stdout.write(`  1. npm run doctor      ${DIM}# verify everything is reachable${RESET}\n`);
   process.stdout.write(`  2. npm run dev         ${DIM}# start the bot${RESET}\n`);
   process.stdout.write(
-    `  3. /moderation join    ${DIM}# in a voice channel, to begin monitoring it${RESET}\n\n`,
+    `  3. /moderation join    ${DIM}# in a voice channel, to begin monitoring it${RESET}\n`,
+  );
+  process.stdout.write(
+    `  4. /moderation add term:<word>  ${DIM}# ban a word; the example rules are placeholders${RESET}\n\n`,
   );
 
   if (dryRun) {

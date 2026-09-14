@@ -67,6 +67,8 @@ export class RulesService {
     term: string,
     opts: AddTermOptions = {},
   ): Promise<{ rule: ModerationRule; alreadyExists: boolean }> {
+    // Start from disk so hand edits made while running are kept, not overwritten.
+    await this.reload();
     const result = addTerm(this.ruleset, term, opts);
     if (!result.alreadyExists) {
       await this.commit(result.ruleset);
@@ -80,6 +82,7 @@ export class RulesService {
   }
 
   async removeTerm(termOrId: string): Promise<ModerationRule | undefined> {
+    await this.reload();
     const result = removeTerm(this.ruleset, termOrId);
     if (result.removed) {
       await this.commit(result.ruleset);

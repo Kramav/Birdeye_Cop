@@ -25,6 +25,7 @@ second opinion — resolves to doing nothing rather than guessing.
 - [Running locally](#running-locally)
 - [Deployment](#deployment)
 - [Commands](#commands)
+- [Banned words](#banned-words)
 - [How moderation decides](#how-moderation-decides)
 - [Configuration reference](#configuration-reference)
 - [Violation audio evidence](#violation-audio-evidence)
@@ -59,7 +60,8 @@ npm run doctor     # ✓/✗ checklist with a fix for every failure
 npm run dev
 ```
 
-Then, in Discord, join a voice channel and run `/moderation join`.
+Then, in Discord, join a voice channel and run `/moderation join`, and ban your
+first word with `/moderation add term:<word>` (see [Banned words](#banned-words)).
 
 The setup wizard reads your application ID from the token, lists your servers
 and channels rather than making you copy IDs, and defaults to the `mock`
@@ -160,6 +162,11 @@ the model, and starts it on `127.0.0.1:8080` (the first run takes a few minutes)
 npm run whisper                                   # needs git, cmake, build-essential
 WHISPER_MODEL=small.en WHISPER_HOST=0.0.0.0 npm run whisper   # other model / sibling container
 ```
+
+On a systemd install, let it run as a service instead:
+`sudo WITH_WHISPER=1 bash scripts/install.sh` builds it into `/opt/birdeye-cop/whisper.cpp`
+and enables `birdeye-whisper.service`, which starts, stops, and restarts with the
+bot (`journalctl -u birdeye-whisper -f` for its logs).
 
 Running it by hand? It serves `/inference` by default, so pass
 `--inference-path /v1/audio/transcriptions` or every request 404s.
@@ -325,6 +332,52 @@ Runtime changes are persisted, so a moderator's change survives a restart.
 command are untrusted input, and a regex there would be a denial-of-service
 vector against the matcher. Regex rules can only be written into the config
 file.
+
+---
+
+## Banned words
+
+The ban list starts with three **placeholder** rules (`example-whole-word`,
+`example-phrase`, `example-substring`) that match made-up words like
+`BANNEDWORDONE`. They never fire on real speech. Replace them with your own.
+
+### From Discord (easiest)
+
+Anyone with Manage Server (or `MODERATOR_ROLE_ID`) can type these in any text
+channel. Replies are only visible to you. Changes apply **immediately**, no
+restart, and are saved to the rules file.
+
+| To… | Type |
+| --- | --- |
+| Ban a word | `/moderation add term:badword` |
+| Ban a phrase | `/moderation add term:bad phrase here` |
+| Ban it harder | `/moderation add term:badword severity:high` — first offence starts one step up the ladder |
+| Also catch it inside other words | `/moderation add term:badword whole-word:False` — careful: `ass` would match `class` |
+| See the list | `/moderation list` — shows rule IDs, not the words |
+| Remove one | `/moderation remove term:badword` or `/moderation remove term:<rule ID>` |
+| Remove the placeholders | `/moderation remove term:example-whole-word` (and `example-phrase`, `example-substring`) |
+
+Capitals, accents, and punctuation don't matter: `BadWord`, `badword!` and
+`bädword` are all the same term.
+
+Test a new word safely: keep `/moderation dry-run true`, say the word in a
+monitored channel, and check that the log channel reports a match.
+
+### By editing the file
+
+For many words at once, exceptions, or regex rules, edit `config/moderation.json`
+(on a systemd install: `/opt/birdeye-cop/config/moderation.json`, owned by
+`birdeye`). Add one object per word to `"rules"`:
+
+```json
+{ "id": "badword", "type": "word", "pattern": "badword", "wholeWord": true,
+  "severity": "medium", "exceptions": [], "enabled": true }
+```
+
+Use `"type": "phrase"` for anything with spaces. Every `id` must be unique.
+Then **restart the bot** (`sudo systemctl restart birdeye-cop`) and run
+`npm run doctor`, which reports a broken file before the bot does. The full
+field list is under [Rules](#rules).
 
 ---
 
